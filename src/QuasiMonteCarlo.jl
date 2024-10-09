@@ -91,6 +91,7 @@ No randomization is performed on the sampled sequence.
 """
 struct NoRand <: RandomizationMethod end
 randomize(x, S::NoRand) = x
+randomize!(x, S::NoRand) = x
 
 include("RandomizedQuasiMonteCarlo/shifting.jl")
 include("RandomizedQuasiMonteCarlo/scrambling_base_b.jl")

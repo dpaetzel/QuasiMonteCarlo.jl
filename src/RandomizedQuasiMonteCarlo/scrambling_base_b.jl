@@ -156,6 +156,20 @@ function randomize!(random_points::AbstractMatrix{T},
 end
 
 """
+Truly in-place version of `randomize!` (i.e. overwrites the original array).
+"""
+function randomize!(points::AbstractMatrix{T}, R::ScrambleMethod) where {T <: Real}
+    b = R.base
+    points_ = points'
+    random_bits = unif2bits(points_, b, pad = R.pad)
+    randomize_bits!(random_bits, R)
+    for i in CartesianIndices(points_)
+        points_[i] = bits2unif(T, @view(random_bits[:, i]), b)
+    end
+    return points
+end
+
+"""
 ```julia
 MatousekScramble <: ScrambleMethod
 ```
@@ -206,6 +220,36 @@ function randomize_bits!(random_bits::AbstractArray{T, 3},
     if pad > m
         # random_bits[(m + 1):pad, :, :] = rand(rng, 0:(b - 1), n * d * (pad - m))
         rand!(rng, @view(random_bits[(m + 1):pad, :, :]), 0:(b - 1))
+    end
+end
+
+"""
+Truly in-place version of `randomize_bits!` (i.e. overwrites the original array).
+"""
+function randomize_bits!(
+        bits::AbstractArray{T, 3}, R::MatousekScramble) where {T <: Integer}
+    # https://statweb.stanford.edu/~owen/mc/ Chapter 17.6 around equation (17.15).
+    #
+    pad, n, d = size(bits)
+    b = R.base
+    rng = R.rng
+    m = logi(b, n)
+    @assert m≥1 "We need m ≥ 1" # m=0 causes awkward corner case below.  Caller handles that case specially.
+
+    for s in 1:d
+        # Permutations matrix and shift to apply to bits 1:m
+        matousek_M, matousek_C = getmatousek(rng, m, b)
+
+        # xₖ = (∑ₗ Mₖₗ aₗ + Cₖ) mod b where xₖ is the k element in base b
+        # matousek_M (m×m) * origin_bits (m×n) .+ matousek_C (m×1)
+        @views bits[1:m, :, s] .= (matousek_M * bits[1:m, :, s] .+
+                                   matousek_C) .% b
+    end
+
+    # Paste in random entries for bits after m'th one
+    if pad > m
+        # random_bits[(m + 1):pad, :, :] = rand(rng, 0:(b - 1), n * d * (pad - m))
+        rand!(rng, @view(bits[(m + 1):pad, :, :]), 0:(b - 1))
     end
 end
 

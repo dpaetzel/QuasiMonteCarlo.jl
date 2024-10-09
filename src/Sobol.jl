@@ -29,3 +29,22 @@ function _sample!(seq::AbstractMatrix, s::Sobol.SobolSeq, R::RandomizationMethod
     end
     return randomize(seq, R)
 end
+
+"""
+Sample a Sobol' sequence into a preallocated array.
+"""
+function sample!(out::AbstractMatrix{T}, S::SobolSample) where {T <: AbstractFloat}
+    d, n = size(out)
+    if n == 0
+        return out
+    end
+    seq = Sobol.SobolSeq(d)
+    # https://github.com/JuliaMath/Sobol.jl/blob/685cec3fde77dce494c208f2de36c89f438254f6/src/Sobol.jl#L77
+    skip(seq, n)
+    for x in eachcol(out)
+        Sobol.next!(seq, x)
+    end
+
+    randomize!(out, S.R)
+    return out
+end
